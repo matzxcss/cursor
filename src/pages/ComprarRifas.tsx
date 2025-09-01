@@ -32,11 +32,7 @@ const ComprarRifas = () => {
 
   // Nova lógica de preços: R$ 0,05 por rifa se quantidade >= 1000, senão R$ 0,10
   const calculatePrice = (qty: number) => {
-    if (qty >= 1000) {
-      return qty * 0.05; // Preço promocional para 1000+ rifas
-    } else {
-      return qty * 0.10; // Preço normal para menos de 1000 rifas
-    }
+    return qty >= 1000 ? qty * 0.05 : qty * 0.10;
   };
 
   const totalPrice = calculatePrice(quantity);
@@ -85,12 +81,27 @@ const ComprarRifas = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('purchase', {
-        body: { quantity }
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Sessão expirada');
+      }
+
+      // Call purchase function with proper headers
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/purchase`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quantity })
       });
 
-      if (error) {
-        throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro na compra');
       }
 
       if (data?.url) {
@@ -104,7 +115,7 @@ const ComprarRifas = () => {
       console.error('Erro na compra:', error);
       toast({
         title: "Erro na compra",
-        description: "Ocorreu um erro ao processar sua compra. Tente novamente.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao processar sua compra. Tente novamente.",
         variant: "destructive",
       });
     } finally {

@@ -11,6 +11,8 @@ import ComprarRifas from "./pages/ComprarRifas";
 import MinhasRifas from "./pages/MinhasRifas";
 import ComoFunciona from "./pages/ComoFunciona";
 import Auth from "./pages/Auth";
+import Success from "./pages/Success";
+import Cancel from "./pages/Cancel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +38,8 @@ const App = () => (
             />
             <Route path="/minhas-rifas" element={<MinhasRifas />} />
             <Route path="/como-funciona" element={<ComoFunciona />} />
+            <Route path="/success" element={<Success />} />
+            <Route path="/cancel" element={<Cancel />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

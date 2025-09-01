@@ -64,15 +64,8 @@ serve(async (req) => {
     const user = userData.user;
     logStep("User authenticated", { userId: user.id });
 
-    // Calculate price based on new rule (in cents)
-    const calculatePrice = (qty: number) => {
-      if (qty <= 1000) {
-        return qty * 10; // R$ 0,10 = 10 centavos
-      } else {
-        return (1000 * 10) + ((qty - 1000) * 5); // R$ 0,05 = 5 centavos para excedente
-      }
-    };
-    const totalAmount = calculatePrice(quantity);
+    // Calculate price: R$ 0.10 for < 1000, R$ 0.05 for >= 1000
+    const totalPrice = quantity >= 1000 ? quantity * 0.05 : quantity * 0.10;
 
     // Get user info from metadata
     const userName = user.user_metadata?.full_name || 'Usuário';
@@ -114,10 +107,10 @@ serve(async (req) => {
           price_data: {
             currency: 'brl',
             product_data: {
-              name: `${quantity} Rifas - Porsche Taycan`,
-              description: `Números: ${raffleNumbers.join(', ')}`,
+              name: `${quantity} Rifas - Porsche Taycan 2025`,
+              description: `${quantity} números da rifa do Porsche Taycan 2025`,
             },
-            unit_amount: totalAmount,
+            unit_amount: Math.round(totalPrice * 100), // Convert to cents
           },
           quantity: 1,
         },
@@ -128,7 +121,8 @@ serve(async (req) => {
       metadata: {
         user_id: user.id,
         quantity: quantity.toString(),
-        raffle_numbers: raffleNumbers.join(','),
+        user_name: userName,
+        user_phone: userPhone,
       },
     });
 
@@ -144,7 +138,7 @@ serve(async (req) => {
         stripe_session_id: session.id,
         raffle_numbers: raffleNumbers,
         quantity,
-        amount: totalAmount,
+        amount: Math.round(totalPrice * 100), // Store in cents
         status: 'pending',
       });
 
@@ -165,7 +159,7 @@ serve(async (req) => {
       url: session.url,
       raffle_numbers: raffleNumbers,
       quantity,
-      total_amount: totalAmount / 100, // Convert back to reais
+      total_amount: totalPrice,
       message: `Compra criada! ${quantity} rifas com números: ${raffleNumbers.join(', ')}`
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

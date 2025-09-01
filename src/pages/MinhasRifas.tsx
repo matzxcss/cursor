@@ -16,6 +16,19 @@ interface Purchase {
   stripe_session_id: string;
 }
 
+const getStatusDisplay = (status: string) => {
+  switch (status) {
+    case 'paid':
+      return { text: '✅ Confirmado', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' };
+    case 'pending':
+      return { text: '⏳ Pendente', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' };
+    case 'failed':
+      return { text: '❌ Falhou', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' };
+    default:
+      return { text: '⏳ Processando', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' };
+  }
+};
+
 const MinhasRifas = () => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +66,15 @@ const MinhasRifas = () => {
     fetchPurchases();
   }, [user, toast]);
 
-  // Agrupa todos os números de todas as compras
-  const allNumbers = purchases.flatMap(purchase => purchase.raffle_numbers).sort((a, b) => a - b);
+  // Agrupa apenas os números de compras pagas/confirmadas
+  const confirmedPurchases = purchases.filter(purchase => purchase.status === 'paid');
+  const allNumbers = confirmedPurchases.flatMap(purchase => purchase.raffle_numbers).sort((a, b) => a - b);
   const totalNumbers = allNumbers.length;
-  const totalSpent = purchases.reduce((sum, purchase) => sum + (purchase.amount / 100), 0);
+  const totalSpent = confirmedPurchases.reduce((sum, purchase) => sum + (purchase.amount / 100), 0);
+  
+  // Números pendentes
+  const pendingPurchases = purchases.filter(purchase => purchase.status === 'pending');
+  const pendingNumbers = pendingPurchases.flatMap(purchase => purchase.raffle_numbers).sort((a, b) => a - b);
 
   if (loading) {
     return (
@@ -92,7 +110,12 @@ const MinhasRifas = () => {
             <div className="bg-card rounded-2xl p-6 shadow-[var(--shadow-elegant)] border border-border text-center">
               <Ticket className="w-8 h-8 text-primary mx-auto mb-3" />
               <div className="text-3xl font-bold text-foreground">{totalNumbers}</div>
-              <div className="text-muted-foreground">Números Comprados</div>
+              <div className="text-muted-foreground">Números Confirmados</div>
+              {pendingNumbers.length > 0 && (
+                <div className="text-sm text-yellow-600 mt-1">
+                  +{pendingNumbers.length} pendentes
+                </div>
+              )}
             </div>
 
             <div className="bg-card rounded-2xl p-6 shadow-[var(--shadow-elegant)] border border-border text-center">
@@ -108,31 +131,59 @@ const MinhasRifas = () => {
             </div>
           </div>
 
-          {totalNumbers > 0 ? (
+          {purchases.length > 0 ? (
             <>
-              {/* Todos os números */}
-              <div className="bg-card rounded-2xl p-8 shadow-[var(--shadow-elegant)] border border-border mb-8">
-                <h2 className="text-2xl font-bold mb-6 flex items-center">
-                  <Ticket className="w-6 h-6 text-primary mr-3" />
-                  Seus Números da Sorte
-                </h2>
-                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-                  {allNumbers.map((number, index) => (
-                    <div
-                      key={`${number}-${index}`}
-                      className="bg-gradient-primary text-primary-foreground p-3 rounded-lg text-center font-bold text-sm"
-                    >
-                      {number.toLocaleString('pt-BR')}
-                    </div>
-                  ))}
+              {/* Números Confirmados */}
+              {totalNumbers > 0 && (
+                <div className="bg-card rounded-2xl p-8 shadow-[var(--shadow-elegant)] border border-border mb-8">
+                  <h2 className="text-2xl font-bold mb-6 flex items-center">
+                    <Ticket className="w-6 h-6 text-green-600 mr-3" />
+                    Seus Números Confirmados ({totalNumbers})
+                  </h2>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                    {allNumbers.map((number, index) => (
+                      <div
+                        key={`confirmed-${number}-${index}`}
+                        className="bg-gradient-primary text-primary-foreground p-3 rounded-lg text-center font-bold text-sm"
+                      >
+                        {number.toLocaleString('pt-BR')}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Números Pendentes */}
+              {pendingNumbers.length > 0 && (
+                <div className="bg-card rounded-2xl p-8 shadow-[var(--shadow-elegant)] border border-border mb-8">
+                  <h2 className="text-2xl font-bold mb-6 flex items-center">
+                    <Ticket className="w-6 h-6 text-yellow-600 mr-3" />
+                    Números Pendentes de Pagamento ({pendingNumbers.length})
+                  </h2>
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                      ⚠️ Estes números serão confirmados após a aprovação do pagamento
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
+                    {pendingNumbers.map((number, index) => (
+                      <div
+                        key={`pending-${number}-${index}`}
+                        className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 p-3 rounded-lg text-center font-bold text-sm border border-yellow-300 dark:border-yellow-700"
+                      >
+                        {number.toLocaleString('pt-BR')}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Histórico de compras */}
               <div className="bg-card rounded-2xl p-8 shadow-[var(--shadow-elegant)] border border-border">
                 <h2 className="text-2xl font-bold mb-6">Histórico de Compras</h2>
                 <div className="space-y-4">
                   {purchases.map((purchase) => (
+                    const statusDisplay = getStatusDisplay(purchase.status);
                     <div
                       key={purchase.id}
                       className="bg-muted rounded-lg p-6 border border-border"
@@ -156,23 +207,28 @@ const MinhasRifas = () => {
                           <div className="text-2xl font-bold text-primary">
                             R$ {(purchase.amount / 100).toFixed(2)}
                           </div>
-                          <div className={`text-sm px-3 py-1 rounded-full inline-block ${
-                            purchase.status === 'paid' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {purchase.status === 'paid' ? '✅ Pago' : '⏳ Pendente'}
+                          <div className={`text-sm px-3 py-1 rounded-full inline-block ${statusDisplay.className}`}>
+                            {statusDisplay.text}
                           </div>
                         </div>
                       </div>
                       
                       <div className="border-t border-border pt-4">
-                        <h4 className="font-medium mb-2">Números desta compra:</h4>
+                        <h4 className="font-medium mb-2">
+                          Números desta compra:
+                          {purchase.status === 'pending' && (
+                            <span className="text-yellow-600 text-sm ml-2">(Aguardando pagamento)</span>
+                          )}
+                        </h4>
                         <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1">
                           {purchase.raffle_numbers.sort((a, b) => a - b).map((number) => (
                             <div
                               key={number}
-                              className="bg-gradient-secondary text-secondary-foreground p-2 rounded text-center text-xs font-medium"
+                              className={`p-2 rounded text-center text-xs font-medium ${
+                                purchase.status === 'paid' 
+                                  ? 'bg-gradient-secondary text-secondary-foreground' 
+                                  : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700'
+                              }`}
                             >
                               {number.toLocaleString('pt-BR')}
                             </div>
